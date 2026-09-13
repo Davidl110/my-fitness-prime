@@ -10,8 +10,23 @@
      set(k,v){ try{localStorage.setItem('rumbo:'+k,JSON.stringify(v))}catch(e){} }
    No hay que tocar nada más en la app.
    ========================================================== */
-const Store=(()=>{const m=new Map();return{get:(k,d)=>m.has(k)?m.get(k):d,set:(k,v)=>m.set(k,v)};})();
-
+const Store = (() => {
+  return {
+    get(k, d) {
+      try {
+        const v = localStorage.getItem('mfp:' + k);
+        return v ? JSON.parse(v) : d;
+      } catch (e) {
+        return d;
+      }
+    },
+    set(k, v) {
+      try {
+        localStorage.setItem('mfp:' + k, JSON.stringify(v));
+      } catch (e) {}
+    }
+  };
+})();
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
 const rnd=(v,d=0)=>{const m=Math.pow(10,d);return Math.round(v*m)/m};
 const kcalOf=f=>f.p*4+f.c*4+f.f*9;
@@ -70,24 +85,40 @@ const SEED=[
   {n:'Café negro (1 taza)',b:'unidad',p:0.3,c:0,f:0,u:240}
 ].map((x,i)=>({id:'s'+i,...x}));
 
-Store.set('foods',SEED.slice());
-Store.set('meals',[{id:'m1',n:'Desayuno',items:[]},{id:'m2',n:'Almuerzo',items:[]},{id:'m3',n:'Cena',items:[]}]);
-Store.set('recent',[]);
-Store.set('profile',{sex:'H',age:31,kg:95.7,cm:174,af:1.55});
-
-/* historial de ejemplo: 21 días. Marcado como ejemplo y borrable. */
-(function seedHistory(){
-  const h=[], base=97.3;
-  for(let i=20;i>=0;i--){
-    const d=new Date(); d.setDate(d.getDate()-i);
-    const trend=base-(20-i)*0.075;
-    const noise=(Math.sin(i*2.3)*0.45)+(Math.cos(i*1.1)*0.25);
-    h.push({date:iso(d), kg:rnd(trend+noise,1),
-      kcal:Math.round(2560+Math.sin(i*1.7)*210),
-      p:Math.round(178+Math.cos(i*0.9)*26), demo:true});
+/* Inicialización: solo se ejecuta la primera vez.
+   Si ya hay datos guardados, no se toca nada. */
+function initSiNoExiste(clave, valor) {
+  if (Store.get(clave, null) === null) {
+    Store.set(clave, valor);
   }
-  Store.set('history',h);
-})();
+}
+
+initSiNoExiste('foods', SEED.slice());
+initSiNoExiste('meals', [
+  {id:'m1', n:'Desayuno', items:[]},
+  {id:'m2', n:'Almuerzo', items:[]},
+  {id:'m3', n:'Cena', items:[]}
+]);
+initSiNoExiste('recent', []);
+initSiNoExiste('profile', {sex:'H', age:31, kg:95.7, cm:174, af:1.55});
+
+/* Historial de ejemplo: 21 dias. Solo la primera vez. */
+if (Store.get('history', null) === null) {
+  const h = [], base = 97.3;
+  for (let i = 20; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const trend = base - (20 - i) * 0.075;
+    const noise = (Math.sin(i * 2.3) * 0.45) + (Math.cos(i * 1.1) * 0.25);
+    h.push({
+      date: iso(d),
+      kg: rnd(trend + noise, 1),
+      kcal: Math.round(2560 + Math.sin(i * 1.7) * 210),
+      p: Math.round(178 + Math.cos(i * 0.9) * 26),
+      demo: true
+    });
+  }
+  Store.set('history', h);
+}
 
 /* ==========================================================
    MOTOR DE CÁLCULO
